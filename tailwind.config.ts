@@ -57,6 +57,11 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "node-action": "hsl(var(--node-action))",
+        "node-item": "hsl(var(--node-item))",
+        "node-character": "hsl(var(--node-character))",
+        "node-goal": "hsl(var(--node-goal))",
+        "node-location": "hsl(var(--node-location))",
       },
       borderRadius: {
         lg: "var(--radius)",

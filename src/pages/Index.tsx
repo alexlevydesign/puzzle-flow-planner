@@ -1,12 +1,44 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useRef } from 'react';
+import { NodeType } from '@/types/graph';
+import { useGraphState } from '@/hooks/useGraphState';
+import NodePalette from '@/components/puzzle/NodePalette';
+import PuzzleCanvas from '@/components/puzzle/PuzzleCanvas';
+import NodeDetail from '@/components/puzzle/NodeDetail';
 
 const Index = () => {
+  const graph = useGraphState();
+  const countRef = useRef(0);
+
+  const handleAddNode = (type: NodeType) => {
+    const count = countRef.current++;
+    const col = count % 3;
+    const row = Math.floor(count / 3);
+    graph.addNode(type, 120 + col * 220, 80 + row * 120);
+  };
+
+  const inventory = graph.selectedNode ? graph.getInventoryAtNode(graph.selectedNode.id) : [];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="flex h-screen bg-background overflow-hidden">
+      <NodePalette onAddNode={handleAddNode} onClear={graph.clearAll} />
+      <PuzzleCanvas
+        nodes={graph.nodes}
+        connections={graph.connections}
+        selectedNodeId={graph.selectedNodeId}
+        onSelectNode={graph.setSelectedNodeId}
+        onMoveNode={graph.moveNode}
+        onAddConnection={graph.addConnection}
+        onInsertBetween={graph.insertNodeBetween}
+      />
+      {graph.selectedNode && (
+        <NodeDetail
+          node={graph.selectedNode}
+          inventory={inventory}
+          onUpdate={graph.updateNode}
+          onDelete={graph.deleteNode}
+          onClose={() => graph.setSelectedNodeId(null)}
+        />
+      )}
     </div>
   );
 };
