@@ -119,12 +119,18 @@ export function useGraphState() {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  const importState = useCallback((state: GraphState) => {
+    setNodes(state.nodes || []);
+    setConnections(state.connections || []);
+    setSelectedNodeId(null);
+  }, []);
+
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || null;
 
   return {
     nodes, connections, selectedNodeId, selectedNode,
     setSelectedNodeId, addNode, updateNode, deleteNode, moveNode,
     addConnection, deleteConnection, insertNodeBetween,
-    getInventoryAtNode, clearAll,
+    getInventoryAtNode, clearAll, importState,
   };
 }
