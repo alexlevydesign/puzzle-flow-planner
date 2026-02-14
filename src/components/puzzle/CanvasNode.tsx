@@ -20,19 +20,20 @@ interface Props {
   node: GameNode;
   selected: boolean;
   connecting: boolean;
+  extracting?: boolean;
   onMouseDown: (id: string, e: React.MouseEvent) => void;
   onOutputPortMouseDown: (id: string, e: React.MouseEvent) => void;
   onInputPortMouseUp: (id: string, e: React.MouseEvent) => void;
 }
 
-export default function CanvasNode({ node, selected, connecting, onMouseDown, onOutputPortMouseDown, onInputPortMouseUp }: Props) {
+export default function CanvasNode({ node, selected, connecting, extracting, onMouseDown, onOutputPortMouseDown, onInputPortMouseUp }: Props) {
   const config = NODE_TYPE_CONFIG[node.type];
   const colors = COLOR_MAP[config.colorClass];
   const portColor = PORT_COLOR[config.colorClass];
 
   return (
     <div
-      className={`absolute select-none cursor-grab active:cursor-grabbing border-2 rounded-lg shadow-lg transition-shadow ${colors} ${selected ? 'ring-2 ring-primary shadow-xl' : ''}`}
+      className={`absolute select-none cursor-grab active:cursor-grabbing border-2 rounded-lg shadow-lg transition-shadow ${colors} ${selected ? 'ring-2 ring-primary shadow-xl' : ''} ${extracting ? 'opacity-60 ring-2 ring-destructive' : ''}`}
       style={{ left: node.x, top: node.y, width: NODE_WIDTH, height: NODE_HEIGHT }}
       onMouseDown={(e) => { e.stopPropagation(); onMouseDown(node.id, e); }}
     >
