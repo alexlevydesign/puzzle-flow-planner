@@ -1,19 +1,20 @@
 import { GameNode, NODE_TYPE_CONFIG, NODE_WIDTH, NODE_HEIGHT } from '@/types/graph';
+import styles from './CanvasNode.module.css';
 
-const COLOR_MAP: Record<string, string> = {
-  'node-action': 'border-node-action/60 bg-node-action/8',
-  'node-item': 'border-node-item/60 bg-node-item/8',
-  'node-character': 'border-node-character/60 bg-node-character/8',
-  'node-goal': 'border-node-goal/60 bg-node-goal/8',
-  'node-location': 'border-node-location/60 bg-node-location/8',
+const NODE_CLASS_MAP: Record<string, string> = {
+  'node-action': styles.nodeAction,
+  'node-item': styles.nodeItem,
+  'node-character': styles.nodeCharacter,
+  'node-goal': styles.nodeGoal,
+  'node-location': styles.nodeLocation,
 };
 
-const PORT_COLOR: Record<string, string> = {
-  'node-action': 'bg-node-action',
-  'node-item': 'bg-node-item',
-  'node-character': 'bg-node-character',
-  'node-goal': 'bg-node-goal',
-  'node-location': 'bg-node-location',
+const PORT_CLASS_MAP: Record<string, string> = {
+  'node-action': styles.portAction,
+  'node-item': styles.portItem,
+  'node-character': styles.portCharacter,
+  'node-goal': styles.portGoal,
+  'node-location': styles.portLocation,
 };
 
 interface Props {
@@ -31,38 +32,59 @@ interface Props {
 
 export default function CanvasNode({ node, selected, connecting, extracting, dragOffset, onMouseDown, onOutputPortMouseDown, onOutputPortMouseUp, onInputPortMouseDown, onInputPortMouseUp }: Props) {
   const config = NODE_TYPE_CONFIG[node.type];
-  const colors = COLOR_MAP[config.colorClass];
-  const portColor = PORT_COLOR[config.colorClass];
+  const nodeColorClass = NODE_CLASS_MAP[config.colorClass];
+  const portColorClass = PORT_CLASS_MAP[config.colorClass];
 
   const style = dragOffset 
     ? { left: node.x, top: node.y, width: NODE_WIDTH, height: NODE_HEIGHT, transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` }
     : { left: node.x, top: node.y, width: NODE_WIDTH, height: NODE_HEIGHT };
 
+  const nodeClasses = [
+    styles.node,
+    nodeColorClass,
+    !dragOffset && styles.withTransition,
+    selected && styles.selected,
+    extracting && styles.extracting,
+  ].filter(Boolean).join(' ');
+
+  const inputPortClasses = [
+    styles.port,
+    styles.inputPort,
+    portColorClass,
+    connecting && styles.connecting,
+  ].filter(Boolean).join(' ');
+
+  const outputPortClasses = [
+    styles.port,
+    styles.outputPort,
+    portColorClass,
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className={`absolute select-none cursor-grab active:cursor-grabbing border-2 rounded-xl ${dragOffset ? '' : 'transition-all'} ${colors} ${selected ? 'border-primary scale-105' : ''} ${extracting ? 'opacity-60 border-destructive' : ''}`}
+      className={nodeClasses}
       style={style}
       onMouseDown={(e) => { e.stopPropagation(); onMouseDown(node.id, e); }}
     >
       {/* Input port */}
       <div
-        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full border-2 border-background ${portColor} cursor-pointer hover:scale-125 transition-transform z-10 ${connecting ? 'animate-pulse scale-125' : ''}`}
+        className={inputPortClasses}
         onMouseDown={(e) => { e.stopPropagation(); onInputPortMouseDown(node.id, e); }}
         onMouseUp={(e) => { e.stopPropagation(); onInputPortMouseUp(node.id, e); }}
       />
 
       {/* Content */}
-      <div className="flex items-center gap-2.5 px-3.5 py-2.5 h-full">
-        <span className="text-xl shrink-0">{config.icon}</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground truncate leading-tight">{node.title}</p>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{config.label}</p>
+      <div className={styles.content}>
+        <span className={styles.icon}>{config.icon}</span>
+        <div className={styles.textContainer}>
+          <p className={styles.title}>{node.title}</p>
+          <p className={styles.label}>{config.label}</p>
         </div>
       </div>
 
       {/* Output port */}
       <div
-        className={`absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full border-2 border-background ${portColor} cursor-crosshair hover:scale-125 transition-transform z-10`}
+        className={outputPortClasses}
         onMouseDown={(e) => { e.stopPropagation(); onOutputPortMouseDown(node.id, e); }}
         onMouseUp={(e) => { e.stopPropagation(); onOutputPortMouseUp(node.id, e); }}
       />

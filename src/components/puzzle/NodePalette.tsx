@@ -1,12 +1,13 @@
 import { NodeType, NODE_TYPES, NODE_TYPE_CONFIG, GraphState } from '@/types/graph';
 import { Download, Upload } from 'lucide-react';
+import styles from './NodePalette.module.css';
 
-const BADGE_COLORS: Record<string, string> = {
-  'node-action': 'bg-node-action/10 text-node-action hover:bg-node-action/20 border-node-action/50',
-  'node-item': 'bg-node-item/10 text-node-item hover:bg-node-item/20 border-node-item/50',
-  'node-character': 'bg-node-character/10 text-node-character hover:bg-node-character/20 border-node-character/50',
-  'node-goal': 'bg-node-goal/10 text-node-goal hover:bg-node-goal/20 border-node-goal/50',
-  'node-location': 'bg-node-location/10 text-node-location hover:bg-node-location/20 border-node-location/50',
+const BUTTON_CLASS_MAP: Record<string, string> = {
+  'node-action': styles.nodeButtonAction,
+  'node-item': styles.nodeButtonItem,
+  'node-character': styles.nodeButtonCharacter,
+  'node-goal': styles.nodeButtonGoal,
+  'node-location': styles.nodeButtonLocation,
 };
 
 interface Props {
@@ -48,16 +49,17 @@ export default function NodePalette({ onAddNode, onClear, onExport, onImport }: 
   };
 
   return (
-    <div className="w-64 bg-card border-r border-border flex flex-col">
-      <div className="p-5 border-b border-border/50">
-        <h2 className="text-base font-semibold text-foreground tracking-tight">Node Library</h2>
-        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+    <div className={styles.palette}>
+      <div className={styles.header}>
+        <h2 className={styles.title}>Node Library</h2>
+        <p className={styles.description}>
           Drag or click to add nodes
         </p>
       </div>
-      <div className="flex-1 p-4 space-y-2.5 overflow-y-auto">
+      <div className={styles.nodeList}>
         {NODE_TYPES.map(type => {
           const config = NODE_TYPE_CONFIG[type];
+          const buttonClass = `${styles.nodeButton} ${BUTTON_CLASS_MAP[config.colorClass]}`;
           return (
             <button
               key={type}
@@ -67,35 +69,35 @@ export default function NodePalette({ onAddNode, onClear, onExport, onImport }: 
                 e.dataTransfer.setData('application/puzzle-node-type', type);
                 e.dataTransfer.effectAllowed = 'copy';
               }}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-lg border-2 text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-grab active:cursor-grabbing ${BADGE_COLORS[config.colorClass]}`}
+              className={buttonClass}
             >
-              <span className="text-lg shrink-0">{config.icon}</span>
-              <span className="text-sm font-medium leading-tight">{config.label}</span>
+              <span className={styles.nodeIcon}>{config.icon}</span>
+              <span className={styles.nodeLabel}>{config.label}</span>
             </button>
           );
         })}
       </div>
-      <div className="p-4 border-t border-border/50 space-y-2.5 bg-card/50">
-        <div className="flex gap-2">
+      <div className={styles.footer}>
+        <div className={styles.buttonGroup}>
           <button
             onClick={handleExport}
-            className="flex-1 flex items-center justify-center gap-2 text-xs font-medium py-2 px-3 rounded-md bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30 transition-all"
+            className={styles.actionButton}
           >
             <Download className="w-3.5 h-3.5" /> Export
           </button>
           <button
             onClick={handleImport}
-            className="flex-1 flex items-center justify-center gap-2 text-xs font-medium py-2 px-3 rounded-md bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30 transition-all"
+            className={styles.actionButton}
           >
             <Upload className="w-3.5 h-3.5" /> Import
           </button>
         </div>
-        <p className="text-[10px] text-muted-foreground text-center font-medium">
+        <p className={styles.autoSaveText}>
           Auto-saved to browser storage
         </p>
         <button
           onClick={onClear}
-          className="w-full text-xs font-medium py-2 px-3 rounded-md bg-destructive/15 text-destructive hover:bg-destructive/25 border border-destructive/30 transition-all"
+          className={styles.clearButton}
         >
           Clear All Nodes
         </button>

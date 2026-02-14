@@ -1,0 +1,160 @@
+.node {
+  position: absolute;
+  user-select: none;
+  cursor: grab;
+  border-width: 2px;
+  border-radius: 0.75rem;
+  background-color: #fff !important;
+}
+
+.node:active {
+  cursor: grabbing;
+}
+
+.node.withTransition {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.node.selected {
+  border-color: hsl(var(--primary));
+  transform: scale(1.05);
+}
+
+.node.extracting {
+  opacity: 0.6;
+  border-color: hsl(var(--destructive));
+}
+
+/* Node type colors */
+.nodeAction {
+  border-color: hsl(var(--node-action) / 0.6);
+  background-color: hsl(var(--node-action) / 0.08);
+}
+
+.nodeItem {
+  border-color: hsl(var(--node-item) / 0.6);
+  background-color: hsl(var(--node-item) / 0.08);
+}
+
+.nodeCharacter {
+  border-color: hsl(var(--node-character) / 0.6);
+  background-color: hsl(var(--node-character) / 0.08);
+}
+
+.nodeGoal {
+  border-color: hsl(var(--node-goal) / 0.6);
+  background-color: hsl(var(--node-goal) / 0.08);
+}
+
+.nodeLocation {
+  border-color: hsl(var(--node-location) / 0.6);
+  background-color: hsl(var(--node-location) / 0.08);
+}
+
+/* Ports */
+.port {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  border-width: 2px;
+  border-color: hsl(var(--background));
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  z-index: 10;
+}
+
+.port:hover {
+  transform: translateX(-50%) scale(1.25);
+}
+
+.inputPort {
+  top: -0.625rem;
+  cursor: pointer;
+}
+
+.outputPort {
+  bottom: -0.625rem;
+  cursor: crosshair;
+}
+
+.port.connecting {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  transform: translateX(-50%) scale(1.25);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Port colors */
+.portAction {
+  background-color: hsl(var(--node-action));
+}
+
+.portItem {
+  background-color: hsl(var(--node-item));
+}
+
+.portCharacter {
+  background-color: hsl(var(--node-character));
+}
+
+.portGoal {
+  background-color: hsl(var(--node-goal));
+}
+
+.portLocation {
+  background-color: hsl(var(--node-location));
+}
+
+/* Content */
+.content {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  height: 100%;
+}
+
+.icon {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  flex-shrink: 0;
+}
+
+.textContainer {
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.label {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: hsl(var(--muted-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 0.125rem;
+}

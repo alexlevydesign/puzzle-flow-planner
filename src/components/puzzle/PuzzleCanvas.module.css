@@ -1,0 +1,194 @@
+.canvas {
+  flex: 1;
+  overflow: hidden;
+  background-color: hsl(0, 0%, 94.5%);
+  position: relative;
+}
+
+.canvasInner {
+  position: absolute;
+  inset: 0;
+}
+
+.zoomIndicator {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--card) / 0.8);
+  backdrop-filter: blur(8px);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.helpText {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.helpTextContent {
+  text-align: center;
+}
+
+.helpTextPrimary {
+  color: hsl(var(--muted-foreground));
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 500;
+}
+
+.helpTextSecondary {
+  color: hsl(var(--muted-foreground) / 0.6);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  margin-top: 0.25rem;
+}
+
+/* SVG styles */
+.svgCanvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.arrowMarker {
+  fill: hsl(215, 16%, 47%);
+}
+
+.connectionPath {
+  fill: none;
+  pointer-events: none;
+}
+
+.connectionHitbox {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 24;
+  pointer-events: stroke;
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='18' font-size='18'>✂️</text></svg>") 12 12, pointer;
+}
+
+.tempConnectionPath {
+  fill: none;
+  stroke: hsl(217, 91%, 60%);
+  stroke-width: 2.5;
+  stroke-dasharray: 8 5;
+  opacity: 0.8;
+}
+
+/* Insert button at connection midpoints */
+.insertButton {
+  position: absolute;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background-color: hsl(var(--primary));
+  border: 2px solid hsl(var(--background));
+  color: hsl(var(--primary-foreground));
+  font-size: 1.125rem;
+  line-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-weight: 400;
+  padding: 0;
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.insertButton:hover {
+  background-color: hsl(var(--primary) / 0.9);
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.insertButton:active {
+  transform: scale(1.1);
+}
+
+.insertButton svg {
+    width: .9rem;
+}
+
+/* Show insert button on connection hover */
+.connectionGroup:hover .insertButton {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Insert menu */
+.insertMenu {
+  position: absolute;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  padding: 0.25rem 0;
+  min-width: 140px;
+  z-index: 30;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.insertMenuLabel {
+  font-size: 0.625rem;
+  line-height: 1rem;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.75rem;
+}
+
+.insertMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: hsl(var(--foreground));
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.insertMenuItem:hover {
+  background-color: hsl(var(--secondary));
+}
+
+/* Cursors */
+.cursorScissors {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='18' font-size='18'>✂️</text></svg>") 12 12, pointer;
+}
+
+.cursorPinch {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='18' font-size='18'>🤏</text></svg>") 12 12, move;
+}
+
+.cursorGrab {
+  cursor: grab;
+}
+
+.cursorGrabbing {
+  cursor: grabbing;
+}

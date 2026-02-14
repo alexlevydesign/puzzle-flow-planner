@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { GameNode, Connection, NodeType, NODE_TYPE_CONFIG, NODE_TYPES, NODE_WIDTH, NODE_HEIGHT } from '@/types/graph';
 import CanvasNode from './CanvasNode';
+import styles from './PuzzleCanvas.module.css';
 
 interface Props {
   nodes: GameNode[];
@@ -50,6 +51,7 @@ export default function PuzzleCanvas({
   const [mouseCanvas, setMouseCanvas] = useState({ x: 0, y: 0 });
   const [insertMenu, setInsertMenu] = useState<{ connectionId: string; x: number; y: number } | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
+  const [hoveredInsertButtonId, setHoveredInsertButtonId] = useState<string | null>(null);
 
   const screenToCanvas = useCallback((sx: number, sy: number) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -270,11 +272,11 @@ export default function PuzzleCanvas({
 
   // Determine cursor
   const getCursor = () => {
-    if (dragging?.metaKey) return 'cursor-pinch';
-    if (connecting) return 'cursor-crosshair';
-    if (panning) return 'cursor-grabbing';
-    if (hoveredConnectionId) return 'cursor-scissors';
-    return 'cursor-grab';
+    if (dragging?.metaKey) return styles.cursorPinch;
+    if (connecting) return styles.cursorCrosshair;
+    if (panning) return styles.cursorGrabbing;
+    if (hoveredConnectionId) return styles.cursorScissors;
+    return styles.cursorGrab;
   };
 
   const connectEndpoint = getConnectingEndpoint();
@@ -282,19 +284,19 @@ export default function PuzzleCanvas({
   return (
     <div
       ref={containerRef}
-      className={`flex-1 overflow-hidden canvas-grid relative ${getCursor()}`}
+      className={`${styles.canvas} ${getCursor()}`}
       onMouseDown={handleCanvasMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }} className="absolute inset-0">
+      <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }} className={styles.transformWrapper}>
         {/* SVG connections */}
-        <svg className="absolute" style={{ left: 0, top: 0, width: 1, height: 1, overflow: 'visible', pointerEvents: 'none' }}>
+        <svg className={styles.svg} style={{ left: 0, top: 0, width: 1, height: 1, overflow: 'visible', pointerEvents: 'none' }}>
           <defs>
-            <marker id="arrow" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 9 3.5, 0 7" fill="hsl(215 16% 47%)" />
+            <marker id="arrow" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
+              <polygon points="0 0, 6 2.5, 0 5" className={styles.arrowMarker} />
             </marker>
           </defs>
           {connections.map(conn => {
@@ -303,16 +305,18 @@ export default function PuzzleCanvas({
             if (!from || !to) return null;
             const isHovered = hoveredConnectionId === conn.id;
             return (
-              <g key={conn.id}>
+              <g 
+                key={conn.id}
+                onMouseEnter={() => setHoveredConnectionId(conn.id)}
+                onMouseLeave={() => setHoveredConnectionId(null)}
+              >
                 {/* Invisible wider hitbox for hover/click */}
                 <path
                   d={getPath(from, to)}
                   fill="none"
                   stroke="transparent"
                   strokeWidth={16}
-                  style={{ pointerEvents: 'stroke', cursor: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'><text y=\'18\' font-size=\'18\'>✂️</text></svg>") 12 12, pointer' }}
-                  onMouseEnter={() => setHoveredConnectionId(conn.id)}
-                  onMouseLeave={() => setHoveredConnectionId(null)}
+                  className={styles.connectionHitbox}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -327,7 +331,7 @@ export default function PuzzleCanvas({
                   stroke={isHovered ? 'hsl(0, 84%, 60%)' : 'hsl(215, 16%, 47%)'}
                   strokeWidth={isHovered ? 3.5 : 2.5}
                   markerEnd={isHovered ? undefined : 'url(#arrow)'}
-                  style={{ pointerEvents: 'none', transition: 'stroke 0.2s ease, stroke-width 0.2s ease' }}
+                  className={styles.connectionPath}
                 />
               </g>
             );
@@ -344,6 +348,7 @@ export default function PuzzleCanvas({
                 strokeWidth={2.5}
                 strokeDasharray="8 5"
                 opacity={0.8}
+                className={styles.connectingLine}
               />
             );
           })()}
@@ -355,18 +360,26 @@ export default function PuzzleCanvas({
           const to = nodes.find(n => n.id === conn.toId);
           if (!from || !to) return null;
           const mid = getMidpoint(from, to);
+          const isVisible = hoveredConnectionId === conn.id || hoveredInsertButtonId === conn.id || insertMenu?.connectionId === conn.id;
           return (
             <button
               key={`ins-${conn.id}`}
-              className="absolute w-5 h-5 rounded-full bg-secondary border border-border text-muted-foreground hover:text-foreground hover:bg-primary hover:border-primary text-xs flex items-center justify-center transition-all hover:scale-125 z-20"
-              style={{ left: mid.x - 10, top: mid.y - 10 }}
+              className={styles.insertButton}
+              style={{ 
+                left: mid.x - 14, 
+                top: mid.y - 14,
+                opacity: isVisible ? 1 : 0,
+                pointerEvents: isVisible ? 'auto' : 'none'
+              }}
+              onMouseEnter={() => setHoveredInsertButtonId(conn.id)}
+              onMouseLeave={() => setHoveredInsertButtonId(null)}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 setInsertMenu({ connectionId: conn.id, x: mid.x, y: mid.y });
               }}
             >
-              +
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path fill="rgba(255, 255, 255, 1.00)" d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"/></svg>
             </button>
           );
         })}
@@ -374,17 +387,17 @@ export default function PuzzleCanvas({
         {/* Insert menu popup */}
         {insertMenu && (
           <div
-            className="absolute z-30 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[140px]"
+            className={styles.insertMenu}
             style={{ left: insertMenu.x + 12, top: insertMenu.y - 10 }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider px-3 py-1">Insert node</p>
+            <p className={styles.insertMenuLabel}>Insert node</p>
             {NODE_TYPES.map(type => {
               const cfg = NODE_TYPE_CONFIG[type];
               return (
                 <button
                   key={type}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-secondary transition-colors"
+                  className={styles.insertMenuItem}
                   onClick={() => {
                     onInsertBetween(insertMenu.connectionId, type);
                     setInsertMenu(null);
@@ -424,16 +437,16 @@ export default function PuzzleCanvas({
       </div>
 
       {/* Zoom indicator */}
-      <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-card/80 backdrop-blur px-2 py-1 rounded border border-border">
+      <div className={styles.zoomIndicator}>
         {Math.round(zoom * 100)}%
       </div>
 
       {/* Help text */}
       {nodes.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center">
-            <p className="text-muted-foreground text-lg font-medium">Drag nodes from the palette</p>
-            <p className="text-muted-foreground/60 text-sm mt-1">Drag ports to connect • Click lines to cut • ⌘+drag to extract • Backspace to delete</p>
+        <div className={styles.helpOverlay}>
+          <div className={styles.helpText}>
+            <p className={styles.helpTitle}>Drag nodes from the palette</p>
+            <p className={styles.helpSubtitle}>Drag ports to connect • Click lines to cut • ⌘+drag to extract • Backspace to delete</p>
           </div>
         </div>
       )}
