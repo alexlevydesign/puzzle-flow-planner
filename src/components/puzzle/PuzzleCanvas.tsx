@@ -10,21 +10,43 @@ interface Props {
   onMoveNode: (id: string, x: number, y: number) => void;
   onAddConnection: (fromId: string, toId: string) => void;
   onDeleteConnection: (id: string) => void;
+  onDeleteNode: (id: string) => void;
   onInsertBetween: (connectionId: string, type: NodeType) => void;
+  onInsertExistingNode: (connectionId: string, nodeId: string) => void;
   onExtractNode: (id: string) => void;
   onDropNodeOnCanvas: (type: NodeType, x: number, y: number) => string;
 }
 
+// Sample points along a cubic bezier to check proximity
+function distToPath(px: number, py: number, from: GameNode, to: GameNode): number {
+  const fx = from.x + NODE_WIDTH / 2;
+  const fy = from.y + NODE_HEIGHT;
+  const tx = to.x + NODE_WIDTH / 2;
+  const ty = to.y;
+  const dv = Math.abs(ty - fy) * 0.4 + 30;
+  // Control points: (fx, fy+dv) and (tx, ty-dv)
+  let minDist = Infinity;
+  for (let t = 0; t <= 1; t += 0.05) {
+    const it = 1 - t;
+    const x = it ** 3 * fx + 3 * it ** 2 * t * fx + 3 * it * t ** 2 * tx + t ** 3 * tx;
+    const y = it ** 3 * fy + 3 * it ** 2 * t * (fy + dv) + 3 * it * t ** 2 * (ty - dv) + t ** 3 * ty;
+    const d = Math.sqrt((px - x) ** 2 + (py - y) ** 2);
+    if (d < minDist) minDist = d;
+  }
+  return minDist;
+}
+
 export default function PuzzleCanvas({
   nodes, connections, selectedNodeId, onSelectNode, onMoveNode,
-  onAddConnection, onDeleteConnection, onInsertBetween, onExtractNode, onDropNodeOnCanvas,
+  onAddConnection, onDeleteConnection, onDeleteNode, onInsertBetween,
+  onInsertExistingNode, onExtractNode, onDropNodeOnCanvas,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [panning, setPanning] = useState<{ sx: number; sy: number; px: number; py: number } | null>(null);
   const [dragging, setDragging] = useState<{ nodeId: string; ox: number; oy: number; metaKey: boolean } | null>(null);
-  const [connecting, setConnecting] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState<{ fromId: string; direction: 'output' | 'input' } | null>(null);
   const [mouseCanvas, setMouseCanvas] = useState({ x: 0, y: 0 });
   const [insertMenu, setInsertMenu] = useState<{ connectionId: string; x: number; y: number } | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
@@ -48,14 +70,21 @@ export default function PuzzleCanvas({
     return () => el.removeEventListener('wheel', handler);
   }, []);
 
-  // Keyboard
+  // Keyboard: Escape + Backspace/Delete
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setConnecting(null); setInsertMenu(null); }
+      if ((e.key === 'Backspace' || e.key === 'Delete') && selectedNodeId) {
+        // Don't delete if user is typing in an input
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        onDeleteNode(selectedNodeId);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [selectedNodeId, onDeleteNode]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -77,12 +106,33 @@ export default function PuzzleCanvas({
     }
   };
 
+  // Find which connection a node center is near
+  const findConnectionNearNode = useCallback((nodeId: string): string | null => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return null;
+    const cx = node.x + NODE_WIDTH / 2;
+    const cy = node.y + NODE_HEIGHT / 2;
+    for (const conn of connections) {
+      if (conn.fromId === nodeId || conn.toId === nodeId) continue;
+      const from = nodes.find(n => n.id === conn.fromId);
+      const to = nodes.find(n => n.id === conn.toId);
+      if (!from || !to) continue;
+      if (distToPath(cx, cy, from, to) < 30) return conn.id;
+    }
+    return null;
+  }, [connections, nodes]);
+
   const handleMouseUp = (e: React.MouseEvent) => {
     setPanning(null);
     if (dragging) {
-      // If cmd/meta was held during drag, extract the node from its chain
       if (dragging.metaKey || e.metaKey) {
         onExtractNode(dragging.nodeId);
+      } else {
+        // Check if node was dropped on a connection line
+        const connId = findConnectionNearNode(dragging.nodeId);
+        if (connId) {
+          onInsertExistingNode(connId, dragging.nodeId);
+        }
       }
       setDragging(null);
     }
@@ -100,13 +150,47 @@ export default function PuzzleCanvas({
 
   const handleOutputPortMouseDown = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setConnecting(id);
+    // If there are existing outgoing connections, disconnect them
+    const outgoing = connections.filter(c => c.fromId === id);
+    outgoing.forEach(c => onDeleteConnection(c.id));
+    setConnecting({ fromId: id, direction: 'output' });
+  };
+
+  const handleInputPortMouseDown = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // If there are existing incoming connections, disconnect them and start connecting from the source
+    const incoming = connections.filter(c => c.toId === id);
+    if (incoming.length > 0) {
+      const sourceId = incoming[0].fromId;
+      incoming.forEach(c => onDeleteConnection(c.id));
+      setConnecting({ fromId: sourceId, direction: 'output' });
+    } else {
+      setConnecting({ fromId: id, direction: 'input' });
+    }
   };
 
   const handleInputPortMouseUp = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (connecting && connecting !== id) {
-      onAddConnection(connecting, id);
+    if (connecting && connecting.fromId !== id) {
+      if (connecting.direction === 'output') {
+        onAddConnection(connecting.fromId, id);
+      } else {
+        onAddConnection(id, connecting.fromId);
+      }
+    }
+    setConnecting(null);
+    setDragging(null);
+    setPanning(null);
+  };
+
+  const handleOutputPortMouseUp = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (connecting && connecting.fromId !== id) {
+      if (connecting.direction === 'input') {
+        onAddConnection(id, connecting.fromId);
+      } else {
+        onAddConnection(connecting.fromId, id);
+      }
     }
     setConnecting(null);
     setDragging(null);
@@ -128,15 +212,13 @@ export default function PuzzleCanvas({
     y: (from.y + NODE_HEIGHT + to.y) / 2,
   });
 
-  // Find which connection a canvas point is near (for drag-drop insertion)
+  // Find connection at point for palette drag-drop
   const findConnectionAtPoint = useCallback((cx: number, cy: number): string | null => {
     for (const conn of connections) {
       const from = nodes.find(n => n.id === conn.fromId);
       const to = nodes.find(n => n.id === conn.toId);
       if (!from || !to) continue;
-      const mid = getMidpoint(from, to);
-      const dist = Math.sqrt((cx - mid.x) ** 2 + (cy - mid.y) ** 2);
-      if (dist < 40) return conn.id;
+      if (distToPath(cx, cy, from, to) < 30) return conn.id;
     }
     return null;
   }, [connections, nodes]);
@@ -154,13 +236,22 @@ export default function PuzzleCanvas({
     if (!type) return;
     e.preventDefault();
     const cp = screenToCanvas(e.clientX, e.clientY);
-    // Check if dropped near a connection
     const connId = findConnectionAtPoint(cp.x, cp.y);
     if (connId) {
       onInsertBetween(connId, type);
     } else {
       onDropNodeOnCanvas(type, cp.x - NODE_WIDTH / 2, cp.y - NODE_HEIGHT / 2);
     }
+  };
+
+  // Connecting line endpoint
+  const getConnectingEndpoint = () => {
+    if (!connecting) return null;
+    const from = nodes.find(n => n.id === connecting.fromId);
+    if (!from) return null;
+    const fx = from.x + NODE_WIDTH / 2;
+    const fy = connecting.direction === 'output' ? from.y + NODE_HEIGHT : from.y;
+    return { fx, fy };
   };
 
   // Determine cursor
@@ -171,6 +262,8 @@ export default function PuzzleCanvas({
     if (hoveredConnectionId) return 'cursor-scissors';
     return 'cursor-grab';
   };
+
+  const connectEndpoint = getConnectingEndpoint();
 
   return (
     <div
@@ -226,15 +319,12 @@ export default function PuzzleCanvas({
             );
           })}
           {/* Temp connecting line */}
-          {connecting && (() => {
-            const from = nodes.find(n => n.id === connecting);
-            if (!from) return null;
-            const fx = from.x + NODE_WIDTH / 2;
-            const fy = from.y + NODE_HEIGHT;
+          {connectEndpoint && (() => {
+            const { fx, fy } = connectEndpoint;
             const dy = Math.abs(mouseCanvas.y - fy) * 0.4 + 30;
             return (
               <path
-                d={`M ${fx} ${fy} C ${fx} ${fy + dy}, ${mouseCanvas.x} ${mouseCanvas.y - dy}, ${mouseCanvas.x} ${mouseCanvas.y}`}
+                d={`M ${fx} ${fy} C ${fx} ${fy + (connecting!.direction === 'output' ? dy : -dy)}, ${mouseCanvas.x} ${mouseCanvas.y + (connecting!.direction === 'output' ? -dy : dy)}, ${mouseCanvas.x} ${mouseCanvas.y}`}
                 fill="none"
                 stroke="hsl(199, 89%, 48%)"
                 strokeWidth={2}
@@ -304,6 +394,8 @@ export default function PuzzleCanvas({
             extracting={dragging?.nodeId === node.id && dragging.metaKey}
             onMouseDown={handleNodeMouseDown}
             onOutputPortMouseDown={handleOutputPortMouseDown}
+            onOutputPortMouseUp={handleOutputPortMouseUp}
+            onInputPortMouseDown={handleInputPortMouseDown}
             onInputPortMouseUp={handleInputPortMouseUp}
           />
         ))}
@@ -319,7 +411,7 @@ export default function PuzzleCanvas({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
             <p className="text-muted-foreground text-lg font-medium">Drag nodes from the palette</p>
-            <p className="text-muted-foreground/60 text-sm mt-1">Drag ports to connect • Click lines to cut • ⌘+drag to extract • Scroll to zoom</p>
+            <p className="text-muted-foreground/60 text-sm mt-1">Drag ports to connect • Click lines to cut • ⌘+drag to extract • Backspace to delete</p>
           </div>
         </div>
       )}

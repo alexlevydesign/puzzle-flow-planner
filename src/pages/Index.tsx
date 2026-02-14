@@ -35,7 +35,9 @@ const Index = () => {
         onMoveNode={graph.moveNode}
         onAddConnection={graph.addConnection}
         onDeleteConnection={graph.deleteConnection}
+        onDeleteNode={graph.deleteNode}
         onInsertBetween={graph.insertNodeBetween}
+        onInsertExistingNode={graph.insertExistingNodeIntoConnection}
         onExtractNode={graph.extractNode}
         onDropNodeOnCanvas={(type, x, y) => graph.addNode(type, x, y)}
       />
