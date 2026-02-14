@@ -95,6 +95,20 @@ export function useGraphState() {
     });
   }, []);
 
+  const insertExistingNodeIntoConnection = useCallback((connectionId: string, nodeId: string) => {
+    setConnections(prev => {
+      const conn = prev.find(c => c.id === connectionId);
+      if (!conn) return prev;
+      // Don't insert if node is already part of this connection
+      if (conn.fromId === nodeId || conn.toId === nodeId) return prev;
+      return [
+        ...prev.filter(c => c.id !== connectionId),
+        { id: genId(), fromId: conn.fromId, toId: nodeId },
+        { id: genId(), fromId: nodeId, toId: conn.toId },
+      ];
+    });
+  }, []);
+
   const getInventoryAtNode = useCallback((nodeId: string): GameNode[] => {
     const visited = new Set<string>();
     const items: GameNode[] = [];
@@ -149,7 +163,7 @@ export function useGraphState() {
   return {
     nodes, connections, selectedNodeId, selectedNode,
     setSelectedNodeId, addNode, updateNode, deleteNode, moveNode,
-    addConnection, deleteConnection, insertNodeBetween,
+    addConnection, deleteConnection, insertNodeBetween, insertExistingNodeIntoConnection,
     getInventoryAtNode, clearAll, importState, extractNode,
   };
 }

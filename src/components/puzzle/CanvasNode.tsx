@@ -23,10 +23,12 @@ interface Props {
   extracting?: boolean;
   onMouseDown: (id: string, e: React.MouseEvent) => void;
   onOutputPortMouseDown: (id: string, e: React.MouseEvent) => void;
+  onOutputPortMouseUp: (id: string, e: React.MouseEvent) => void;
+  onInputPortMouseDown: (id: string, e: React.MouseEvent) => void;
   onInputPortMouseUp: (id: string, e: React.MouseEvent) => void;
 }
 
-export default function CanvasNode({ node, selected, connecting, extracting, onMouseDown, onOutputPortMouseDown, onInputPortMouseUp }: Props) {
+export default function CanvasNode({ node, selected, connecting, extracting, onMouseDown, onOutputPortMouseDown, onOutputPortMouseUp, onInputPortMouseDown, onInputPortMouseUp }: Props) {
   const config = NODE_TYPE_CONFIG[node.type];
   const colors = COLOR_MAP[config.colorClass];
   const portColor = PORT_COLOR[config.colorClass];
@@ -40,6 +42,7 @@ export default function CanvasNode({ node, selected, connecting, extracting, onM
       {/* Input port */}
       <div
         className={`absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-card ${portColor} cursor-pointer hover:scale-125 transition-transform z-10 ${connecting ? 'animate-pulse scale-125' : ''}`}
+        onMouseDown={(e) => { e.stopPropagation(); onInputPortMouseDown(node.id, e); }}
         onMouseUp={(e) => { e.stopPropagation(); onInputPortMouseUp(node.id, e); }}
       />
 
@@ -56,6 +59,7 @@ export default function CanvasNode({ node, selected, connecting, extracting, onM
       <div
         className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-card ${portColor} cursor-crosshair hover:scale-125 transition-transform z-10`}
         onMouseDown={(e) => { e.stopPropagation(); onOutputPortMouseDown(node.id, e); }}
+        onMouseUp={(e) => { e.stopPropagation(); onOutputPortMouseUp(node.id, e); }}
       />
     </div>
   );
