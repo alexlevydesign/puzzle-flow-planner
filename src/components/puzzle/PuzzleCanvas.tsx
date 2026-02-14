@@ -45,7 +45,7 @@ export default function PuzzleCanvas({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [panning, setPanning] = useState<{ sx: number; sy: number; px: number; py: number } | null>(null);
-  const [dragging, setDragging] = useState<{ nodeId: string; ox: number; oy: number; metaKey: boolean } | null>(null);
+  const [dragging, setDragging] = useState<{ nodeId: string; ox: number; oy: number; metaKey: boolean; startX: number; startY: number; currentX: number; currentY: number } | null>(null);
   const [connecting, setConnecting] = useState<{ fromId: string; direction: 'output' | 'input' } | null>(null);
   const [mouseCanvas, setMouseCanvas] = useState({ x: 0, y: 0 });
   const [insertMenu, setInsertMenu] = useState<{ connectionId: string; x: number; y: number } | null>(null);
@@ -102,7 +102,9 @@ export default function PuzzleCanvas({
       setPan({ x: panning.px + (e.clientX - panning.sx), y: panning.py + (e.clientY - panning.sy) });
     }
     if (dragging) {
-      onMoveNode(dragging.nodeId, cp.x - dragging.ox, cp.y - dragging.oy);
+      const newX = cp.x - dragging.ox;
+      const newY = cp.y - dragging.oy;
+      setDragging(prev => prev ? { ...prev, currentX: newX, currentY: newY } : null);
     }
   };
 
@@ -125,6 +127,9 @@ export default function PuzzleCanvas({
   const handleMouseUp = (e: React.MouseEvent) => {
     setPanning(null);
     if (dragging) {
+      // Apply final position
+      onMoveNode(dragging.nodeId, dragging.currentX, dragging.currentY);
+      
       if (dragging.metaKey || e.metaKey) {
         onExtractNode(dragging.nodeId);
       } else {
@@ -143,7 +148,16 @@ export default function PuzzleCanvas({
     const cp = screenToCanvas(e.clientX, e.clientY);
     const node = nodes.find(n => n.id === id);
     if (!node) return;
-    setDragging({ nodeId: id, ox: cp.x - node.x, oy: cp.y - node.y, metaKey: e.metaKey });
+    setDragging({ 
+      nodeId: id, 
+      ox: cp.x - node.x, 
+      oy: cp.y - node.y, 
+      metaKey: e.metaKey,
+      startX: node.x,
+      startY: node.y,
+      currentX: node.x,
+      currentY: node.y
+    });
     onSelectNode(id);
     setInsertMenu(null);
   };
@@ -279,8 +293,8 @@ export default function PuzzleCanvas({
         {/* SVG connections */}
         <svg className="absolute" style={{ left: 0, top: 0, width: 1, height: 1, overflow: 'visible', pointerEvents: 'none' }}>
           <defs>
-            <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="hsl(215, 12%, 50%)" />
+            <marker id="arrow" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 9 3.5, 0 7" fill="hsl(215 16% 47%)" />
             </marker>
           </defs>
           {connections.map(conn => {
@@ -310,10 +324,10 @@ export default function PuzzleCanvas({
                 <path
                   d={getPath(from, to)}
                   fill="none"
-                  stroke={isHovered ? 'hsl(0, 72%, 55%)' : 'hsl(215, 12%, 40%)'}
-                  strokeWidth={isHovered ? 3 : 2}
+                  stroke={isHovered ? 'hsl(0, 84%, 60%)' : 'hsl(215, 16%, 47%)'}
+                  strokeWidth={isHovered ? 3.5 : 2.5}
                   markerEnd={isHovered ? undefined : 'url(#arrow)'}
-                  style={{ pointerEvents: 'none', transition: 'stroke 0.15s, stroke-width 0.15s' }}
+                  style={{ pointerEvents: 'none', transition: 'stroke 0.2s ease, stroke-width 0.2s ease' }}
                 />
               </g>
             );
@@ -326,10 +340,10 @@ export default function PuzzleCanvas({
               <path
                 d={`M ${fx} ${fy} C ${fx} ${fy + (connecting!.direction === 'output' ? dy : -dy)}, ${mouseCanvas.x} ${mouseCanvas.y + (connecting!.direction === 'output' ? -dy : dy)}, ${mouseCanvas.x} ${mouseCanvas.y}`}
                 fill="none"
-                stroke="hsl(199, 89%, 48%)"
-                strokeWidth={2}
-                strokeDasharray="6 4"
-                opacity={0.7}
+                stroke="hsl(217, 91%, 60%)"
+                strokeWidth={2.5}
+                strokeDasharray="8 5"
+                opacity={0.8}
               />
             );
           })()}
@@ -385,20 +399,28 @@ export default function PuzzleCanvas({
         )}
 
         {/* Nodes */}
-        {nodes.map(node => (
-          <CanvasNode
-            key={node.id}
-            node={node}
-            selected={selectedNodeId === node.id}
-            connecting={!!connecting}
-            extracting={dragging?.nodeId === node.id && dragging.metaKey}
-            onMouseDown={handleNodeMouseDown}
-            onOutputPortMouseDown={handleOutputPortMouseDown}
-            onOutputPortMouseUp={handleOutputPortMouseUp}
-            onInputPortMouseDown={handleInputPortMouseDown}
-            onInputPortMouseUp={handleInputPortMouseUp}
-          />
-        ))}
+        {nodes.map(node => {
+          const isDragging = dragging?.nodeId === node.id;
+          const dragOffset = isDragging && dragging 
+            ? { x: dragging.currentX - dragging.startX, y: dragging.currentY - dragging.startY }
+            : null;
+          
+          return (
+            <CanvasNode
+              key={node.id}
+              node={node}
+              selected={selectedNodeId === node.id}
+              connecting={!!connecting}
+              extracting={dragging?.nodeId === node.id && dragging.metaKey}
+              dragOffset={dragOffset}
+              onMouseDown={handleNodeMouseDown}
+              onOutputPortMouseDown={handleOutputPortMouseDown}
+              onOutputPortMouseUp={handleOutputPortMouseUp}
+              onInputPortMouseDown={handleInputPortMouseDown}
+              onInputPortMouseUp={handleInputPortMouseUp}
+            />
+          );
+        })}
       </div>
 
       {/* Zoom indicator */}
