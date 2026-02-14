@@ -34,7 +34,10 @@ const Index = () => {
         onSelectNode={graph.setSelectedNodeId}
         onMoveNode={graph.moveNode}
         onAddConnection={graph.addConnection}
+        onDeleteConnection={graph.deleteConnection}
         onInsertBetween={graph.insertNodeBetween}
+        onExtractNode={graph.extractNode}
+        onDropNodeOnCanvas={(type, x, y) => graph.addNode(type, x, y)}
       />
       {graph.selectedNode && (
         <NodeDetail

@@ -9,26 +9,25 @@ interface Props {
   onSelectNode: (id: string | null) => void;
   onMoveNode: (id: string, x: number, y: number) => void;
   onAddConnection: (fromId: string, toId: string) => void;
+  onDeleteConnection: (id: string) => void;
   onInsertBetween: (connectionId: string, type: NodeType) => void;
+  onExtractNode: (id: string) => void;
+  onDropNodeOnCanvas: (type: NodeType, x: number, y: number) => string;
 }
 
-const NODE_COLOR_HEX: Record<string, string> = {
-  action: '#f59e0b',
-  item: '#10b981',
-  character: '#0ea5e9',
-  goal: '#ef4444',
-  location: '#8b5cf6',
-};
-
-export default function PuzzleCanvas({ nodes, connections, selectedNodeId, onSelectNode, onMoveNode, onAddConnection, onInsertBetween }: Props) {
+export default function PuzzleCanvas({
+  nodes, connections, selectedNodeId, onSelectNode, onMoveNode,
+  onAddConnection, onDeleteConnection, onInsertBetween, onExtractNode, onDropNodeOnCanvas,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [panning, setPanning] = useState<{ sx: number; sy: number; px: number; py: number } | null>(null);
-  const [dragging, setDragging] = useState<{ nodeId: string; ox: number; oy: number } | null>(null);
+  const [dragging, setDragging] = useState<{ nodeId: string; ox: number; oy: number; metaKey: boolean } | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [mouseCanvas, setMouseCanvas] = useState({ x: 0, y: 0 });
   const [insertMenu, setInsertMenu] = useState<{ connectionId: string; x: number; y: number } | null>(null);
+  const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
 
   const screenToCanvas = useCallback((sx: number, sy: number) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -78,17 +77,23 @@ export default function PuzzleCanvas({ nodes, connections, selectedNodeId, onSel
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
     setPanning(null);
-    if (dragging) setDragging(null);
-    if (connecting) setConnecting(null); // cancel if not dropped on port
+    if (dragging) {
+      // If cmd/meta was held during drag, extract the node from its chain
+      if (dragging.metaKey || e.metaKey) {
+        onExtractNode(dragging.nodeId);
+      }
+      setDragging(null);
+    }
+    if (connecting) setConnecting(null);
   };
 
   const handleNodeMouseDown = (id: string, e: React.MouseEvent) => {
     const cp = screenToCanvas(e.clientX, e.clientY);
     const node = nodes.find(n => n.id === id);
     if (!node) return;
-    setDragging({ nodeId: id, ox: cp.x - node.x, oy: cp.y - node.y });
+    setDragging({ nodeId: id, ox: cp.x - node.x, oy: cp.y - node.y, metaKey: e.metaKey });
     onSelectNode(id);
     setInsertMenu(null);
   };
@@ -123,13 +128,59 @@ export default function PuzzleCanvas({ nodes, connections, selectedNodeId, onSel
     y: (from.y + NODE_HEIGHT + to.y) / 2,
   });
 
+  // Find which connection a canvas point is near (for drag-drop insertion)
+  const findConnectionAtPoint = useCallback((cx: number, cy: number): string | null => {
+    for (const conn of connections) {
+      const from = nodes.find(n => n.id === conn.fromId);
+      const to = nodes.find(n => n.id === conn.toId);
+      if (!from || !to) continue;
+      const mid = getMidpoint(from, to);
+      const dist = Math.sqrt((cx - mid.x) ** 2 + (cy - mid.y) ** 2);
+      if (dist < 40) return conn.id;
+    }
+    return null;
+  }, [connections, nodes]);
+
+  // Handle drag-and-drop from palette
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/puzzle-node-type')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    const type = e.dataTransfer.getData('application/puzzle-node-type') as NodeType;
+    if (!type) return;
+    e.preventDefault();
+    const cp = screenToCanvas(e.clientX, e.clientY);
+    // Check if dropped near a connection
+    const connId = findConnectionAtPoint(cp.x, cp.y);
+    if (connId) {
+      onInsertBetween(connId, type);
+    } else {
+      onDropNodeOnCanvas(type, cp.x - NODE_WIDTH / 2, cp.y - NODE_HEIGHT / 2);
+    }
+  };
+
+  // Determine cursor
+  const getCursor = () => {
+    if (dragging?.metaKey) return 'cursor-pinch';
+    if (connecting) return 'cursor-crosshair';
+    if (panning) return 'cursor-grabbing';
+    if (hoveredConnectionId) return 'cursor-scissors';
+    return 'cursor-grab';
+  };
+
   return (
     <div
       ref={containerRef}
-      className={`flex-1 overflow-hidden canvas-grid relative ${connecting ? 'cursor-crosshair' : panning ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`flex-1 overflow-hidden canvas-grid relative ${getCursor()}`}
       onMouseDown={handleCanvasMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }} className="absolute inset-0">
         {/* SVG connections */}
@@ -143,15 +194,35 @@ export default function PuzzleCanvas({ nodes, connections, selectedNodeId, onSel
             const from = nodes.find(n => n.id === conn.fromId);
             const to = nodes.find(n => n.id === conn.toId);
             if (!from || !to) return null;
+            const isHovered = hoveredConnectionId === conn.id;
             return (
-              <path
-                key={conn.id}
-                d={getPath(from, to)}
-                fill="none"
-                stroke="hsl(215, 12%, 40%)"
-                strokeWidth={2}
-                markerEnd="url(#arrow)"
-              />
+              <g key={conn.id}>
+                {/* Invisible wider hitbox for hover/click */}
+                <path
+                  d={getPath(from, to)}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={16}
+                  style={{ pointerEvents: 'stroke', cursor: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'><text y=\'18\' font-size=\'18\'>✂️</text></svg>") 12 12, pointer' }}
+                  onMouseEnter={() => setHoveredConnectionId(conn.id)}
+                  onMouseLeave={() => setHoveredConnectionId(null)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteConnection(conn.id);
+                    setHoveredConnectionId(null);
+                  }}
+                />
+                {/* Visible path */}
+                <path
+                  d={getPath(from, to)}
+                  fill="none"
+                  stroke={isHovered ? 'hsl(0, 72%, 55%)' : 'hsl(215, 12%, 40%)'}
+                  strokeWidth={isHovered ? 3 : 2}
+                  markerEnd={isHovered ? undefined : 'url(#arrow)'}
+                  style={{ pointerEvents: 'none', transition: 'stroke 0.15s, stroke-width 0.15s' }}
+                />
+              </g>
             );
           })}
           {/* Temp connecting line */}
@@ -230,6 +301,7 @@ export default function PuzzleCanvas({ nodes, connections, selectedNodeId, onSel
             node={node}
             selected={selectedNodeId === node.id}
             connecting={!!connecting}
+            extracting={dragging?.nodeId === node.id && dragging.metaKey}
             onMouseDown={handleNodeMouseDown}
             onOutputPortMouseDown={handleOutputPortMouseDown}
             onInputPortMouseUp={handleInputPortMouseUp}
@@ -246,8 +318,8 @@ export default function PuzzleCanvas({ nodes, connections, selectedNodeId, onSel
       {nodes.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <p className="text-muted-foreground text-lg font-medium">Add nodes from the palette</p>
-            <p className="text-muted-foreground/60 text-sm mt-1">Drag ports to connect • Scroll to zoom • Drag canvas to pan</p>
+            <p className="text-muted-foreground text-lg font-medium">Drag nodes from the palette</p>
+            <p className="text-muted-foreground/60 text-sm mt-1">Drag ports to connect • Click lines to cut • ⌘+drag to extract • Scroll to zoom</p>
           </div>
         </div>
       )}

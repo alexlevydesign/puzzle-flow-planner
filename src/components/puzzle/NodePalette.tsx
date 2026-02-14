@@ -59,8 +59,13 @@ export default function NodePalette({ onAddNode, onClear, onExport, onImport }: 
           return (
             <button
               key={type}
+              draggable
               onClick={() => onAddNode(type)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${BADGE_COLORS[config.colorClass]}`}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/puzzle-node-type', type);
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-grab active:cursor-grabbing ${BADGE_COLORS[config.colorClass]}`}
             >
               <span className="text-base">{config.icon}</span>
               <span className="text-sm font-medium">{config.label}</span>

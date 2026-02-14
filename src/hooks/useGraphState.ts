@@ -125,12 +125,31 @@ export function useGraphState() {
     setSelectedNodeId(null);
   }, []);
 
+  const extractNode = useCallback((id: string) => {
+    setConnections(prev => {
+      const incoming = prev.filter(c => c.toId === id);
+      const outgoing = prev.filter(c => c.fromId === id);
+      const rest = prev.filter(c => c.fromId !== id && c.toId !== id);
+      // Reconnect: each incoming source to each outgoing target
+      const newConns: Connection[] = [];
+      for (const inc of incoming) {
+        for (const out of outgoing) {
+          if (!rest.some(c => c.fromId === inc.fromId && c.toId === out.toId) &&
+              !newConns.some(c => c.fromId === inc.fromId && c.toId === out.toId)) {
+            newConns.push({ id: genId(), fromId: inc.fromId, toId: out.toId });
+          }
+        }
+      }
+      return [...rest, ...newConns];
+    });
+  }, []);
+
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || null;
 
   return {
     nodes, connections, selectedNodeId, selectedNode,
     setSelectedNodeId, addNode, updateNode, deleteNode, moveNode,
     addConnection, deleteConnection, insertNodeBetween,
-    getInventoryAtNode, clearAll, importState,
+    getInventoryAtNode, clearAll, importState, extractNode,
   };
 }
